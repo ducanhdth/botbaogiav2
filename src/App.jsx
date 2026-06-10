@@ -8,20 +8,26 @@ function dateAfter(d){const dt=new Date();dt.setDate(dt.getDate()+d);return dt.t
 // newQID replaced below
 
 function buildPrompt(co,qid){
+  // Ultra-compact catalog: mã|tên|p1-p2-p3-p4-p5-p6 (~15 tokens/SP thay vì 50)
   let cat="";
   D.s.forEach(s=>{
-    const vt=s.vi?"(VAT đã gộp)":"(VAT "+s.v+"% chưa gộp)";
-    cat+="\n### "+s.n+" ("+s.p.length+" SP) "+vt+"\n";
-    if(s.notes&&s.notes.length)s.notes.slice(0,3).forEach(nt=>{cat+="  📌 "+nt+"\n";});
+    const vi=s.vi?"✓":"✗";
+    cat+="\n["+s.n+"] VAT"+s.v+"%"+vi+" tiers:"+((s.tl||[]).join(","))+"\n";
+    // Ghi chú quan trọng nhất (tối đa 1 dòng)
+    if(s.notes&&s.notes.length){
+      const n=s.notes.find(function(x){return x.toLowerCase().indexOf("vat")>=0||x.toLowerCase().indexOf("giá")>=0;});
+      if(n)cat+=" 📌"+n.substring(0,80)+"\n";
+    }
     s.p.forEach(p=>{
-      const id=(p.c?p.c+" | ":"")+((p.n||"").substring(0,80));
-      cat+="• "+id+(p.x?" ["+p.x+"]":"")+"\n";
-      if(p.t&&p.t.length)cat+="  Giá: "+p.t.map(t=>t.l+":"+fmtC(t.p)).join(" | ")+"\n";
+      const code=p.c||"";
+      const name=(p.n||"").substring(0,55);
+      const prices=(p.t&&p.t.length)?p.t.map(function(t){return fmtC(t.p);}).join("-"):"";
+      cat+=(code?code+"|":"")+name+(prices?"|"+prices:"")+"\n";
     });
   });
   const q=qid||newQID();
   const tmpl='{"quoteNumber":"'+q+'","date":"'+today()+'","validUntil":"'+dateAfter(30)+'","customer":{"name":"","address":"","phone":""},"items":[{"stt":1,"code":"","name":"","unit":"Cái","quantity":0,"unitPrice":0,"amount":0,"tierUsed":""}],"subtotal":0,"vatRate":0,"vatIncluded":false,"vatAmount":0,"total":0,"notes":""}';
-  return "Bạn là trợ lý tạo báo giá cho "+(co&&co.name?co.name:"Quà Tặng VIVA")+".\n\n## DANH MỤC"+cat+"\n## QUY TẮC BÁO GIÁ\n1. PHẢI HỎI SỐ LƯỢNG trước khi báo giá nếu chưa có — không thể chọn đúng bậc giá\n2. CHỌN ĐÚNG BẬC: 75 cái→50-100; 200 cái→200-300; 600 cái→501-1000\n3. VAT: xem theo từng sheet (đã gộp hay chưa)\n4. Tính: amount=qty×price; vat=sub×vatRate/100; total=sub+vat\n5. Tìm SP bằng mã hoặc tên gần đúng\n\n## FORMAT JSON BÁO GIÁ (bắt buộc khi đủ thông tin)\nQUOTE_JSON_START\n"+tmpl+"\nQUOTE_JSON_END\nSau JSON: 1-2 câu tóm tắt tiếng Việt.";
+  return "Trợ lý báo giá cho "+(co&&co.name?co.name:"VIVA")+". Format: mã|tên|giá_theo_bậc_SL\n\nCATALOG:"+cat+"\nQUY TẮC:\n1.HỎI SỐ LƯỢNG nếu chưa có\n2.Chọn bậc: SL 75→50-100; SL 200→200-300; SL 600→501-1000\n3.VAT: ✓=đã gộp ✗=chưa gộp (cộng thêm)\n4.amount=qty×price; vat=sub×vatRate/100; total=sub+vat\n5.Tìm SP: fuzzy tên+mã\n\nQUOTE_JSON_START khi đủ info:\n"+tmpl+"\nQUOTE_JSON_END\n1-2 câu tóm tắt tiếng Việt.";
 }
 
 function CatalogModal({onClose}){
@@ -294,7 +300,7 @@ export default function App(){
       const qid=newQID();
       const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:2000,system:buildPrompt(co,qid),
-          messages:nm.map(function(m){return{role:m.role==="assistant"?"assistant":"user",content:m.text};})})
+          messages:nm.slice(-6).map(function(m){return{role:m.role==="assistant"?"assistant":"user",content:m.text};})})
       });
       const data=await res.json();
       // Hiện lỗi rõ ràng nếu có
