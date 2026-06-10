@@ -28,7 +28,7 @@ function buildPrompt(co,qid){
   });
   const q=qid||newQID();
   const tmpl='{"quoteNumber":"'+q+'","date":"'+today()+'","validUntil":"'+dateAfter(30)+'","customer":{"name":"","address":"","phone":""},"items":[{"stt":1,"code":"","name":"","unit":"Cái","quantity":0,"unitPrice":0,"amount":0,"tierUsed":""}],"subtotal":0,"vatRate":0,"vatIncluded":false,"vatAmount":0,"total":0,"notes":""}';
-  return "Trợ lý báo giá cho "+(co&&co.name?co.name:"VIVA")+". Format: mã|tên|giá_theo_bậc_SL\n\nCATALOG:"+cat+"\nQUY TẮC:\n1.HỎI SỐ LƯỢNG nếu chưa có\n2.Chọn bậc: SL 75→50-100; SL 200→200-300; SL 600→501-1000\n3.VAT: ✓=đã gộp ✗=chưa gộp (cộng thêm)\n4.amount=qty×price; vat=sub×vatRate/100; total=sub+vat\n5.Tìm SP: fuzzy tên+mã\n\nQUOTE_JSON_START khi đủ info:\n"+tmpl+"\nQUOTE_JSON_END\n1-2 câu tóm tắt tiếng Việt.";
+  return "Trợ lý báo giá cho "+(co&&co.name?co.name:"VIVA")+". Format: mã|tên|giá_theo_bậc_SL\n\nCATALOG:"+cat+"\nQUY TẮC:\n1.HỎI SỐ LƯỢNG nếu chưa có\n2.Chọn bậc: SL 75→50-100; SL 200→200-300; SL 600→501-1000\n3.VAT: ✓=đã gộp ✗=chưa gộp (cộng thêm)\n4.amount=qty×price; vat=sub×vatRate/100; total=sub+vat\n5.Tìm SP: fuzzy tên+mã\n6.QUAN TRỌNG: Khi tạo xong báo giá, hướng dẫn user click nút [📝 Xuất Word (.docx)] ở góc trên phải màn hình để tải file Word về máy. KHÔNG nói không xuất được file - giao diện web đã có sẵn tính năng này.\n\nQUOTE_JSON_START khi đủ info:\n"+tmpl+"\nQUOTE_JSON_END\n1-2 câu tóm tắt + nhắc click nút Xuất Word.";
 }
 
 function CatalogModal({onClose}){
