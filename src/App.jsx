@@ -5,7 +5,7 @@ function fmtVND(n){return new Intl.NumberFormat("vi-VN").format(Math.round(n||0)
 function fmtC(n){if(!n)return"0";if(n>=1e6)return(n/1e6).toFixed(3).replace(/\.?0+$/,"")+"M";return Math.round(n/1e3)+"k";}
 function today(){return new Date().toLocaleDateString("vi-VN",{day:"2-digit",month:"2-digit",year:"numeric"});}
 function dateAfter(d){const dt=new Date();dt.setDate(dt.getDate()+d);return dt.toLocaleDateString("vi-VN",{day:"2-digit",month:"2-digit",year:"numeric"});}
-function newQID(){const n=new Date();return"BG-"+n.getFullYear()+String(n.getMonth()+1).padStart(2,"0")+String(n.getDate()).padStart(2,"0")+"-"+String(Math.floor(Math.random()*900)+100);}
+// newQID replaced below
 
 function buildPrompt(co,qid){
   let cat="";
@@ -101,92 +101,177 @@ function Settings({co,setCo,onClose}){
   );
 }
 
+function numToWords(n){
+  if(!n||n===0)return"Không đồng";
+  n=Math.round(n);
+  const u=["","một","hai","ba","bốn","năm","sáu","bảy","tám","chín"];
+  function tri(x){
+    if(!x)return"";
+    var h=Math.floor(x/100),t=Math.floor((x%100)/10),o=x%10,s="";
+    if(h)s+=u[h]+" trăm ";
+    if(t===0&&o&&h)s+="linh ";
+    if(t===1){s+="mười ";if(o===5)s+="lăm ";else if(o)s+=u[o]+" ";}
+    else if(t>1){s+=u[t]+" mươi ";if(o===1)s+="mốt ";else if(o===5)s+="lăm ";else if(o)s+=u[o]+" ";}
+    else if(o)s+=u[o]+" ";
+    return s.trim();
+  }
+  var ty=Math.floor(n/1e9),tr=Math.floor((n%1e9)/1e6),ng=Math.floor((n%1e6)/1e3),du=n%1e3,r="";
+  if(ty)r+=tri(ty)+" tỷ ";
+  if(tr)r+=tri(tr)+" triệu ";
+  if(ng)r+=tri(ng)+" nghìn ";
+  if(du)r+=tri(du);
+  r=r.trim();
+  return r.charAt(0).toUpperCase()+r.slice(1)+" đồng chẵn";
+}
+
+function newQID(){
+  const n=new Date();
+  return String(Math.floor(Math.random()*9000)+1000)+"/"+n.getFullYear()+"/BG-VIVA";
+}
+
 function QuoteDoc({quote,co}){
   if(!quote)return(
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",minHeight:"360px",textAlign:"center",padding:"48px",fontFamily:"'Plus Jakarta Sans',sans-serif",color:"rgba(11,30,53,.3)"}}>
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",minHeight:"360px",textAlign:"center",padding:"48px",fontFamily:"'Times New Roman',serif",color:"rgba(11,30,53,.3)"}}>
       <div style={{fontSize:"52px",opacity:.3,marginBottom:"14px"}}>📋</div>
       <p style={{fontSize:"14px",lineHeight:1.8,maxWidth:"240px",color:"rgba(11,30,53,.35)"}}>Báo giá sẽ xuất hiện ở đây sau khi bạn chat yêu cầu</p>
-      <p style={{fontSize:"12px",marginTop:"10px",fontStyle:"italic",opacity:.6}}>Thử: "Báo giá 100 ca trà A001 cho khách ABC"</p>
+      <p style={{fontSize:"12px",marginTop:"10px",fontStyle:"italic",opacity:.6}}>Thử: "Báo giá 100 bình giữ nhiệt cho công ty ABC"</p>
     </div>
   );
   const sub=quote.items?quote.items.reduce(function(s,i){return s+(i.amount||(i.quantity*i.unitPrice)||0);},0):(quote.subtotal||0);
-  const vr=quote.vatRate!=null?quote.vatRate:10,vi=quote.vatIncluded!=null?quote.vatIncluded:false;
-  const va=vi?0:(quote.vatAmount!=null?quote.vatAmount:sub*vr/100);
+  const vr=quote.vatRate!=null?quote.vatRate:8;
+  const vi=quote.vatIncluded!=null?quote.vatIncluded:false;
+  const va=vi?0:(quote.vatAmount!=null?quote.vatAmount:Math.round(sub*vr/100));
   const total=quote.total||sub+va;
+  const BD="1px solid #000";
+  const cell=function(content,style){return <td style={Object.assign({border:BD,padding:"6px 8px",fontSize:"11px",verticalAlign:"top"},style||{})}>{content}</td>;};
+  const coName=co&&co.name?"CÔNG TY CỔ PHẦN QUÀ TẶNG VIVA":"CÔNG TY CỔ PHẦN QUÀ TẶNG VIVA";
+  const coEmail=co&&co.email?co.email:"lienhe@quatangviva.com";
+
   return(
-    <div id="quote-print" style={{fontFamily:"'Plus Jakarta Sans',sans-serif",padding:"34px 38px",background:"#fff",fontSize:"12px",lineHeight:1.6,color:"#1a1a1a"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",paddingBottom:"18px",borderBottom:"3px solid #09182a",marginBottom:"22px"}}>
-        <div>
-          <div style={{fontFamily:"'Fraunces',serif",fontSize:"19px",fontWeight:"700",color:"#09182a",marginBottom:"6px"}}>{co&&co.name?co.name:"Công ty"}</div>
-          <div style={{color:"#555",fontSize:"11px",lineHeight:1.9}}>
-            {co&&co.address&&<div>📍 {co.address}</div>}
-            {co&&co.phone&&<div>📞 {co.phone}</div>}
-            {co&&co.email&&<div>✉ {co.email}</div>}
-            {co&&co.tax&&<div>🏛 MST: {co.tax}</div>}
+    <div id="quote-print" style={{fontFamily:"'Times New Roman',serif",padding:"28px 32px",background:"#fff",fontSize:"11px",lineHeight:1.5,color:"#000",maxWidth:"900px",margin:"0 auto"}}>
+
+      {/* ── HEADER ── */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",paddingBottom:"10px",borderBottom:"2px solid #000",marginBottom:"14px"}}>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:"bold",fontSize:"13px",marginBottom:"3px"}}>{coName}</div>
+          <div style={{fontSize:"10px",lineHeight:1.7}}>
+            <div>68 Nguyễn Huệ, Phường Sài Gòn, TP Hồ Chí Minh</div>
+            <div>VP HCM: 189 Tây Thạnh, Tây Thạnh HCM</div>
+            <div>VP HN: 149 Trần Hòa, Định Công Hoàng Mai HN</div>
+            <div>Hotline: 1900 8159 &nbsp;|&nbsp; Email: lienhe@quatangviva.com &nbsp;|&nbsp; Website: quatangviva.com</div>
           </div>
         </div>
-        <div style={{textAlign:"right"}}>
-          <div style={{fontFamily:"'Fraunces',serif",fontSize:"28px",fontWeight:"700",color:"#C4922A",letterSpacing:"-1px"}}>BÁO GIÁ</div>
-          <div style={{fontWeight:"700",fontSize:"13px",color:"#09182a",marginTop:"2px"}}>{quote.quoteNumber}</div>
-          <div style={{color:"#888",fontSize:"11px",marginTop:"3px"}}>Ngày: {quote.date}</div>
-          <div style={{color:"#888",fontSize:"11px"}}>Hiệu lực: {quote.validUntil}</div>
+        <div style={{textAlign:"center",marginLeft:"20px",border:"2px solid #2e7d32",borderRadius:"6px",padding:"8px 14px",minWidth:"100px"}}>
+          <div style={{fontWeight:"bold",fontSize:"16px",color:"#2e7d32",letterSpacing:"-0.5px"}}>viva<span style={{color:"#66bb6a"}}>gift</span></div>
+          <div style={{fontSize:"9px",color:"#555",marginTop:"2px"}}>quatangviva.com</div>
         </div>
       </div>
-      {quote.customer&&quote.customer.name&&(
-        <div style={{background:"#F9F7F3",borderLeft:"3px solid #C4922A",padding:"11px 15px",borderRadius:"0 7px 7px 0",marginBottom:"20px"}}>
-          <div style={{fontWeight:"700",color:"#09182a",fontSize:"10px",textTransform:"uppercase",letterSpacing:".07em",marginBottom:"4px"}}>Kính gửi</div>
-          <div style={{fontWeight:"600",fontSize:"14px"}}>{quote.customer.name}</div>
-          {quote.customer.address&&<div style={{color:"#666",marginTop:"2px"}}>{quote.customer.address}</div>}
-          {quote.customer.phone&&<div style={{color:"#666"}}>ĐT: {quote.customer.phone}</div>}
+
+      {/* ── TITLE ── */}
+      <div style={{textAlign:"center",fontWeight:"bold",fontSize:"17px",margin:"14px 0 16px",letterSpacing:"0.5px",textTransform:"uppercase"}}>
+        Bảng Báo Giá Sản Phẩm &amp; Dịch Vụ
+      </div>
+
+      {/* ── CUSTOMER + QUOTE INFO ── */}
+      <div style={{display:"flex",marginBottom:"14px",gap:"20px"}}>
+        <div style={{flex:1,fontSize:"11px",lineHeight:1.8}}>
+          {quote.customer&&quote.customer.name&&<div><strong>Kính gửi (Quotation for):</strong> <strong>{quote.customer.name}</strong></div>}
+          {quote.customer&&quote.customer.contact&&<div><strong>Người liên hệ (Attn):</strong> {quote.customer.contact}</div>}
+          {quote.customer&&quote.customer.address&&<div><strong>Địa chỉ (Address):</strong> {quote.customer.address}</div>}
+          {quote.customer&&quote.customer.phone&&<div><strong>ĐT:</strong> {quote.customer.phone}</div>}
+          {quote.customer&&quote.customer.email&&<div><strong>Email:</strong> {quote.customer.email}</div>}
         </div>
-      )}
-      <table style={{width:"100%",borderCollapse:"collapse",marginBottom:"20px"}}>
+        <div style={{textAlign:"right",fontSize:"11px",lineHeight:1.9,minWidth:"230px"}}>
+          <div><strong>Ngày (Date):</strong> {quote.date}</div>
+          <div><strong>Số BG (Ref No):</strong> {quote.quoteNumber}</div>
+          <div><strong>Nhân viên phụ trách:</strong> {coEmail}</div>
+        </div>
+      </div>
+
+      {/* ── PRODUCT TABLE ── */}
+      <table style={{width:"100%",borderCollapse:"collapse",marginBottom:"0"}}>
         <thead>
-          <tr style={{background:"#09182a",color:"#fff"}}>
-            {["#","Mã SP","Tên sản phẩm","ĐVT","SL","Đơn giá","Thành tiền"].map((h,i)=>(
-              <th key={i} style={{padding:"9px 10px",textAlign:i>=4?"right":"left",fontSize:"10px",fontWeight:"700",letterSpacing:".06em",textTransform:"uppercase",whiteSpace:"nowrap"}}>{h}</th>
-            ))}
+          <tr style={{background:"#d9d9d9",fontWeight:"bold",textAlign:"center",fontSize:"11px"}}>
+            <th style={{border:BD,padding:"7px 5px",width:"4%"}}>STT</th>
+            <th style={{border:BD,padding:"7px 8px",textAlign:"left",width:"32%"}}>Tên SP &amp; Quy cách kỹ thuật</th>
+            <th style={{border:BD,padding:"7px 5px",width:"15%"}}>Hình ảnh<br/>(Mockup)</th>
+            <th style={{border:BD,padding:"7px 5px",width:"6%"}}>ĐVT</th>
+            <th style={{border:BD,padding:"7px 5px",width:"8%"}}>Số Lượng</th>
+            <th style={{border:BD,padding:"7px 8px",width:"16%"}}>Đơn giá (VNĐ)</th>
+            <th style={{border:BD,padding:"7px 8px",width:"19%"}}>Thành tiền (VNĐ)</th>
           </tr>
         </thead>
         <tbody>
-          {(quote.items||[]).map((item,idx)=>(
-            <tr key={idx} style={{background:idx%2===0?"#fff":"#F9F7F3",borderBottom:"1px solid #ECEAE6"}}>
-              <td style={{padding:"9px 10px",color:"#aaa",textAlign:"center"}}>{item.stt||idx+1}</td>
-              <td style={{padding:"9px 10px",color:"#888",fontFamily:"monospace",fontSize:"11px"}}>{item.code||"—"}</td>
-              <td style={{padding:"9px 10px",fontWeight:"500"}}>{item.name}{item.tierUsed&&<span style={{color:"#bbb",fontSize:"10px",marginLeft:"6px"}}>({item.tierUsed})</span>}</td>
-              <td style={{padding:"9px 10px",color:"#666"}}>{item.unit||"Cái"}</td>
-              <td style={{padding:"9px 10px",textAlign:"right",fontWeight:"600"}}>{item.quantity}</td>
-              <td style={{padding:"9px 10px",textAlign:"right"}}>{fmtVND(item.unitPrice)}</td>
-              <td style={{padding:"9px 10px",textAlign:"right",fontWeight:"700",color:"#09182a"}}>{fmtVND(item.amount!=null?item.amount:item.quantity*item.unitPrice)}</td>
-            </tr>
-          ))}
+          {(quote.items||[]).map(function(item,idx){
+            return(
+              <tr key={idx}>
+                <td style={{border:BD,padding:"10px 5px",textAlign:"center",verticalAlign:"middle"}}>{item.stt||idx+1}</td>
+                <td style={{border:BD,padding:"10px 8px",verticalAlign:"top"}}>
+                  <div style={{fontWeight:"500"}}>{item.name}</div>
+                  {item.code&&<div style={{color:"#555",fontSize:"10px",marginTop:"2px"}}>Mã: {item.code}</div>}
+                  {item.tierUsed&&<div style={{color:"#888",fontSize:"10px"}}>Bậc: {item.tierUsed}</div>}
+                </td>
+                <td style={{border:BD,padding:"10px 5px",textAlign:"center",verticalAlign:"middle",color:"#aaa",fontSize:"10px"}}>[ảnh]</td>
+                <td style={{border:BD,padding:"10px 5px",textAlign:"center",verticalAlign:"middle"}}>{item.unit||"Cái"}</td>
+                <td style={{border:BD,padding:"10px 5px",textAlign:"center",verticalAlign:"middle",fontWeight:"600"}}>{new Intl.NumberFormat("vi-VN").format(item.quantity)}</td>
+                <td style={{border:BD,padding:"10px 8px",textAlign:"right",verticalAlign:"middle"}}>{new Intl.NumberFormat("vi-VN").format(Math.round(item.unitPrice))}</td>
+                <td style={{border:BD,padding:"10px 8px",textAlign:"right",verticalAlign:"middle",fontWeight:"600"}}>{new Intl.NumberFormat("vi-VN").format(Math.round(item.amount!=null?item.amount:item.quantity*item.unitPrice))}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
-      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:"20px"}}>
-        <div style={{minWidth:"290px"}}>
-          {[vi?["Tổng cộng (đã bao gồm VAT "+vr+"%):",fmtVND(sub)]:["Cộng tiền hàng (chưa VAT):",fmtVND(sub)],!vi&&["Thuế GTGT ("+vr+"%):",fmtVND(va)]].filter(Boolean).map(function(item2,i){const l=item2[0],v=item2[1];return(
-            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 13px",borderBottom:"1px solid #eee",color:"#555",fontSize:"12px"}}>
-              <span>{l}</span><span>{v}</span>
-            </div>
-          );})}
-          <div style={{display:"flex",justifyContent:"space-between",padding:"11px 13px",background:"#09182a",color:"#fff",fontWeight:"700",fontSize:"14px",borderRadius:"0 0 7px 7px",marginTop:"1px"}}>
-            <span>TỔNG THANH TOÁN</span><span style={{color:"#E8B84B"}}>{fmtVND(total)}</span>
-          </div>
+
+      {/* ── TOTALS ── */}
+      <table style={{width:"100%",borderCollapse:"collapse",marginBottom:"14px"}}>
+        <tbody>
+          <tr>
+            <td colSpan={5} style={{border:BD,padding:"6px 8px",textAlign:"right",fontWeight:"bold",fontSize:"11px"}}>Cộng tiền hàng (Subtotal):</td>
+            <td style={{border:BD,padding:"6px 8px",textAlign:"right",fontSize:"11px",minWidth:"130px"}}>{new Intl.NumberFormat("vi-VN").format(sub)}</td>
+          </tr>
+          <tr>
+            <td colSpan={5} style={{border:BD,padding:"6px 8px",textAlign:"right",fontSize:"11px"}}>Thuế GTGT / VAT ({vr}%):</td>
+            <td style={{border:BD,padding:"6px 8px",textAlign:"right",fontSize:"11px"}}>{new Intl.NumberFormat("vi-VN").format(va)}</td>
+          </tr>
+          <tr style={{fontWeight:"bold"}}>
+            <td colSpan={5} style={{border:BD,padding:"7px 8px",textAlign:"right",fontSize:"12px",textTransform:"uppercase"}}>Tổng cộng tiền thanh toán (Grand Total):</td>
+            <td style={{border:BD,padding:"7px 8px",textAlign:"right",fontSize:"12px"}}>{new Intl.NumberFormat("vi-VN").format(total)}</td>
+          </tr>
+          <tr>
+            <td colSpan={6} style={{border:BD,padding:"6px 8px",textAlign:"center",fontSize:"11px"}}>
+              (Bằng chữ: <strong>{numToWords(total)}</strong>)
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      {/* ── TERMS ── */}
+      <div style={{fontSize:"11px",lineHeight:1.75,marginBottom:"20px"}}>
+        <div style={{fontWeight:"bold",marginBottom:"6px",fontSize:"12px"}}>ĐIỀU KHOẢN &amp; ĐIỀU KIỆN (TERMS &amp; CONDITIONS)</div>
+        <div style={{marginBottom:"4px"}}><strong>Thanh toán (Payment):</strong></div>
+        <div style={{paddingLeft:"12px"}}>• Đợt 1: Thanh toán 50% tổng giá trị báo giá trong vòng 7 ngày khi lên đơn đặt hàng / hai bên ký kết hợp đồng.</div>
+        <div style={{paddingLeft:"12px",marginBottom:"4px"}}>• Đợt cuối: Thanh toán phần còn lại trong vòng 5 ngày kể từ khi nhận đầy đủ hàng và hóa đơn tài chính hợp lệ.</div>
+        <div><strong>Thời hạn báo giá (Quotation Valid):</strong> Báo giá có giá trị trong vòng 15 ngày kể từ ngày báo giá.</div>
+        <div><strong>Giá trên đã bao gồm:</strong> Phí in ấn / khắc laze theo yêu cầu, Miễn phí giao hàng đến 1 địa chỉ của Khách hàng.</div>
+        <div><strong>Yêu cầu file thiết kế:</strong> Khách hàng cung cấp logo định dạng vector (.AI, .EPS) để đảm bảo chất lượng in ấn / khắc laser sắc nét nhất.</div>
+        <div><strong>Giao hàng (Delivery):</strong> Hàng hóa sẽ được giao trong vòng 10-12 ngày làm việc kể từ ngày nhận được tiền thanh toán đợt 1.</div>
+        {quote.notes&&<div style={{marginTop:"6px",fontStyle:"italic",color:"#444"}}>📌 {quote.notes}</div>}
+      </div>
+
+      {/* ── SIGNATURE ── */}
+      <div style={{display:"flex",justifyContent:"flex-end"}}>
+        <div style={{textAlign:"center",minWidth:"200px"}}>
+          <div style={{fontWeight:"bold",fontSize:"12px",marginBottom:"4px"}}>BÊN BÁO GIÁ</div>
+          <div style={{fontSize:"11px",color:"#555",marginBottom:"2px"}}>{coEmail}</div>
+          <div style={{fontSize:"11px",marginBottom:"50px"}}>Nhân viên kinh doanh</div>
+          <div style={{borderTop:"1px solid #000",paddingTop:"4px",fontSize:"10px",fontStyle:"italic"}}>(Ký, ghi rõ họ tên)</div>
         </div>
       </div>
-      {quote.notes&&<div style={{background:"#FFFCF4",border:"1px solid #F0DEB4",borderRadius:"8px",padding:"11px 15px",marginBottom:"20px",color:"#666",fontSize:"12px"}}><b style={{color:"#09182a"}}>Ghi chú: </b>{quote.notes}</div>}
-      {co&&(co.bank||co.bankName)&&<div style={{background:"#F3F6FA",borderRadius:"8px",padding:"11px 15px",marginBottom:"22px",fontSize:"12px"}}><b style={{color:"#09182a",display:"block",marginBottom:"5px"}}>Thông tin thanh toán:</b>{co.bankName&&<div>🏦 {co.bankName}</div>}{co.bank&&<div>💳 STK: <b>{co.bank}</b></div>}{co.name&&<div>👤 Chủ TK: <b>{co.name}</b></div>}</div>}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"24px",paddingTop:"16px",borderTop:"1px solid #eee"}}>
-        {["Đại diện bên mua","Đại diện bên bán"].map((t,i)=>(
-          <div key={i} style={{textAlign:"center"}}>
-            <div style={{fontWeight:"700",fontSize:"11px",textTransform:"uppercase",letterSpacing:".06em",color:"#09182a",marginBottom:"50px"}}>{t}</div>
-            <div style={{borderTop:"1px solid #ccc",paddingTop:"6px",color:"#bbb",fontSize:"11px",fontStyle:"italic"}}>(Ký, ghi rõ họ tên)</div>
-          </div>
-        ))}
-      </div>
+
     </div>
   );
 }
+
 
 export default function App(){
   const[co,setCo]=useState(Object.assign({},D.co,{tax:"",bank:"",bankName:""}));
