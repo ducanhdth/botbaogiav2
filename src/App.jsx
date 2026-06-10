@@ -212,11 +212,29 @@ export default function App(){
           messages:nm.map(function(m){return{role:m.role==="assistant"?"assistant":"user",content:m.text};})})
       });
       const data=await res.json();
+      // Hiện lỗi rõ ràng nếu có
+      if(data.error){
+        const msg=typeof data.error==="string"?data.error:(data.error.message||JSON.stringify(data.error));
+        setMsgs(nm.concat([{role:"assistant",text:"❌ Lỗi API: "+msg+"\n\n💡 Kiểm tra:\n• Vercel → Settings → Environment Variables\n• Đã thêm ANTHROPIC_API_KEY chưa?\n• Sau khi thêm phải bấm Redeploy"}]));
+        setBusy(false);return;
+      }
       const raw=data.content?data.content.map(function(c){return c.text||"";}).join(""):"";
+      if(!raw){
+        setMsgs(nm.concat([{role:"assistant",text:"❌ AI không trả về nội dung. Kiểm tra API Key trong Vercel."}]));
+        setBusy(false);return;
+      }
       const jm=raw.match(/QUOTE_JSON_START\s*([\s\S]*?)\s*QUOTE_JSON_END/);
-      if(jm){try{setQuote(JSON.parse(jm[1].trim()));}catch(e){}}
-      setMsgs(nm.concat([{role:"assistant",text:raw.replace(/QUOTE_JSON_START[\s\S]*?QUOTE_JSON_END/g,"").trim()||"Đã tạo báo giá."}]));
-    }catch(e){setMsgs(nm.concat([{role:"assistant",text:"❌ "+e.message}]));}
+      if(jm){
+        try{
+          const q=JSON.parse(jm[1].trim());
+          setQuote(q);
+        }catch(parseErr){
+          console.error("Lỗi parse JSON báo giá:",parseErr);
+        }
+      }
+      const display=raw.replace(/QUOTE_JSON_START[\s\S]*?QUOTE_JSON_END/g,"").trim();
+      setMsgs(nm.concat([{role:"assistant",text:display||(jm?"Đã tạo báo giá — xem bên phải →":"Bot chưa tạo báo giá. Hãy cung cấp tên SP + số lượng.")}]));
+    }catch(e){setMsgs(nm.concat([{role:"assistant",text:"❌ Lỗi kết nối: "+e.message}]));}
     setBusy(false);
   };
 
