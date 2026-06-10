@@ -1,15 +1,14 @@
 // api/chat.js — Vercel Serverless Function
-// Proxies requests to Anthropic API, keeping your API key server-side only.
-
 export default async function handler(req, res) {
-  // Only allow POST
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: "ANTHROPIC_API_KEY chưa được cài đặt trong Vercel Environment Variables." });
+    return res.status(500).json({ 
+      error: "ANTHROPIC_API_KEY chưa được cài đặt. Vào Vercel → Settings → Environment Variables để thêm." 
+    });
   }
 
   try {
@@ -26,6 +25,6 @@ export default async function handler(req, res) {
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "Lỗi proxy: " + err.message });
   }
 }
