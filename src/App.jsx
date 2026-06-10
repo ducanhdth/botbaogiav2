@@ -39,7 +39,10 @@ function buildPrompt(co,qid){
     "CHỌN BẬC GIÁ: 75 cái→50-100; 200→200-300; 600→501-1000\n"+
     "VAT: ✓=đã gộp ✗=chưa gộp\n\n"+
     "FORMAT BẮT BUỘC:\nQUOTE_JSON_START\n"+tmpl+"\nQUOTE_JSON_END";
-};
+}
+
+function Settings({co,setCo,onClose}){
+  const INP={background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.13)",borderRadius:"8px",padding:"8px 12px",color:"#FAFAF8",fontSize:"13px",fontFamily:"inherit",outline:"none",width:"100%"};
   const flds=[["name","Tên công ty","1/-1"],["address","Địa chỉ","1/-1"],["phone","Điện thoại",""],["email","Email",""],["tax","Mã số thuế",""],["bankName","Ngân hàng",""],["bank","Số tài khoản","1/-1"]];
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.65)",zIndex:998,display:"flex",alignItems:"center",justifyContent:"flex-end"}} onClick={onClose}>
