@@ -258,6 +258,37 @@ function QuoteDoc({quote,co}){
   );
 }
 
+
+// ── Customer Form (inline in chat) ──
+function CustomerFormMessage({quote, onDone}){
+  const[form,setForm]=useState({name:"",contact:"",phone:"",address:"",email:""});
+  const INP={background:"rgba(255,255,255,.08)",border:"1px solid rgba(255,255,255,.15)",borderRadius:"8px",
+    padding:"7px 11px",color:"#FAFAF8",fontSize:"12px",fontFamily:"inherit",outline:"none",width:"100%"};
+  const fields=[["name","Tên công ty / Khách hàng *"],["contact","Người liên hệ"],
+    ["phone","Số điện thoại"],["address","Địa chỉ"],["email","Email"]];
+  return(
+    <div style={{background:"rgba(255,255,255,.07)",border:"1px solid rgba(255,255,255,.1)",borderRadius:"14px",padding:"14px",maxWidth:"90%"}}>
+      <div style={{color:"#FAFAF8",fontWeight:"700",fontSize:"13px",marginBottom:"10px"}}>📋 Thông tin khách hàng</div>
+      {fields.map(function([k,lbl]){return(
+        <div key={k} style={{marginBottom:"8px"}}>
+          <label style={{color:"rgba(255,255,255,.45)",fontSize:"10px",fontWeight:"700",letterSpacing:".05em",textTransform:"uppercase",display:"block",marginBottom:"3px"}}>{lbl}</label>
+          <input style={INP} value={form[k]} onChange={function(e){setForm(function(p){return Object.assign({},p,{[k]:e.target.value});});}}/>
+        </div>
+      );})}
+      <button
+        onClick={function(){if(!form.name.trim())return;onDone(form);}}
+        disabled={!form.name.trim()}
+        style={{marginTop:"6px",width:"100%",padding:"9px",borderRadius:"9px",border:"none",fontFamily:"inherit",
+          background:form.name.trim()?"linear-gradient(135deg,#C4922A,#E8B84B)":"rgba(196,146,42,.2)",
+          color:form.name.trim()?"#09182a":"rgba(255,255,255,.3)",
+          fontSize:"13px",fontWeight:"700",cursor:form.name.trim()?"pointer":"not-allowed"}}>
+        ✅ Tạo báo giá với thông tin này
+      </button>
+    </div>
+  );
+}
+
+
 export default function App(){
   const[co,setCo]=useState(Object.assign({},D.co,{tax:"",bank:"",bankName:""}));
   const initMsg="Xin chào! 👋 Đã tải đầy đủ danh mục Quà Tặng VIVA:\n"+D.s.map(s=>"• "+s.n+": "+s.p.length+" SP, VAT "+s.v+"% "+(s.vi?"(đã gộp)":"(chưa gộp)")+", "+(s.tl?s.tl.length:0)+" bậc giá").join("\n")+"\n\n⚠️ Sản phẩm có giá theo bậc số lượng — hãy cho tôi biết SỐ LƯỢNG khi yêu cầu báo giá!\n\nBạn muốn báo giá gì?";
@@ -308,17 +339,18 @@ export default function App(){
         setMsgs(nm.concat([{role:"assistant",text:"❌ AI không trả về nội dung. Kiểm tra API Key trong Vercel."}]));
         setBusy(false);return;
       }
-      const jm=raw.match(/QUOTE_JSON_START\s*([\s\S]*?)\s*QUOTE_JSON_END/);
-      if(jm){
-        try{
-          const q=JSON.parse(jm[1].trim());
-          setQuote(q);
-        }catch(parseErr){
-          console.error("Lỗi parse JSON báo giá:",parseErr);
-        }
-      }
+      const jm=raw.match(/QUOTE_JSON_START[\s\S]*?QUOTE_JSON_END/);
+      const jm2=raw.match(/QUOTE_JSON_START\s*([\s\S]*?)\s*QUOTE_JSON_END/);
+      let parsedQ=null;
+      if(jm2){try{parsedQ=JSON.parse(jm2[1].trim());}catch(e){console.error("JSON parse:",e);}}
       const display=raw.replace(/QUOTE_JSON_START[\s\S]*?QUOTE_JSON_END/g,"").trim();
-      setMsgs(nm.concat([{role:"assistant",text:display||(jm?"Đã tạo báo giá — xem bên phải →":"Bot chưa tạo báo giá. Hãy cung cấp tên SP + số lượng.")}]));
+      const baseMsg={role:"assistant",text:display||(parsedQ?"Đã tạo báo giá.":"Bot chưa tạo báo giá. Hãy cung cấp tên SP + số lượng.")};
+      if(parsedQ){
+        const cName=(parsedQ.customer&&parsedQ.customer.name)||"";
+        const hasCust=cName.trim().length>2&&!cName.match(/^\.+$/);
+        if(hasCust){setQuote(parsedQ);setMsgs(nm.concat([baseMsg]));}
+        else{setMsgs(nm.concat([baseMsg,{role:"ui",type:"customer_choice",quote:parsedQ}]));}
+      } else {setMsgs(nm.concat([baseMsg]));}
     }catch(e){setMsgs(nm.concat([{role:"assistant",text:"❌ Lỗi kết nối: "+e.message}]));}
     setBusy(false);
   };
@@ -340,7 +372,46 @@ export default function App(){
           <button onClick={function(){setShowSet(true);}} style={{background:"rgba(255,255,255,.05)",border:"1px solid rgba(255,255,255,.08)",borderRadius:"7px",padding:"4px 10px",color:"rgba(255,255,255,.28)",fontSize:"11px",cursor:"pointer",fontFamily:"inherit",flexShrink:0}}>⚙ Cài đặt</button>
         </div>
         <div style={{flex:1,overflowY:"auto",padding:"13px",display:"flex",flexDirection:"column",gap:"9px"}}>
-          {msgs.map(function(m,i){return(
+          {msgs.map(function(m,i){
+            // Special UI messages
+            if(m.role==="ui"&&m.type==="customer_choice"){return(
+              <div key={i} className="msg" style={{display:"flex",justifyContent:"flex-start"}}>
+                <div style={{maxWidth:"92%"}}>
+                  <div style={{padding:"10px 14px",fontSize:"13px",lineHeight:1.6,borderRadius:"16px 16px 16px 3px",
+                    background:"rgba(255,255,255,.06)",border:"1px solid rgba(255,255,255,.06)",color:"#FAFAF8",marginBottom:"8px"}}>
+                    Báo giá đã sẵn sàng! Thông tin khách hàng chưa có — bạn muốn:
+                  </div>
+                  <div style={{display:"flex",gap:"8px",flexWrap:"wrap"}}>
+                    <button onClick={function(){
+                      setQuote(m.quote);
+                      setMsgs(function(prev){return prev.map(function(msg,j){return j===i?{role:"assistant",text:"✅ Đã xem trước báo giá — click nút [📝 Xuất Word] để tải file. Bạn có thể điền thông tin khách hàng vào file Word sau."}:msg;});});
+                    }} style={{padding:"9px 16px",borderRadius:"10px",border:"1px solid rgba(34,197,94,.4)",
+                      background:"rgba(34,197,94,.1)",color:"#86EFAC",fontSize:"12px",fontWeight:"700",cursor:"pointer",fontFamily:"inherit"}}>
+                      ✅ Xem trước ngay — điền sau
+                    </button>
+                    <button onClick={function(){
+                      setMsgs(function(prev){return prev.map(function(msg,j){return j===i?{role:"ui",type:"customer_form",quote:m.quote}:msg;});});
+                    }} style={{padding:"9px 16px",borderRadius:"10px",border:"none",
+                      background:"linear-gradient(135deg,#C4922A,#E8B84B)",color:"#09182a",fontSize:"12px",fontWeight:"700",cursor:"pointer",fontFamily:"inherit"}}>
+                      📝 Cung cấp thông tin khách hàng
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );}
+            if(m.role==="ui"&&m.type==="customer_form"){return(
+              <div key={i} className="msg" style={{display:"flex",justifyContent:"flex-start"}}>
+                <CustomerFormMessage quote={m.quote} onDone={function(customer){
+                  const updated=Object.assign({},m.quote,{customer:customer});
+                  setQuote(updated);
+                  setMsgs(function(prev){return prev.map(function(msg,j){
+                    return j===i?{role:"assistant",text:"✅ Đã cập nhật thông tin khách hàng: "+customer.name+". Xem báo giá bên phải → click [📝 Xuất Word] để tải file."}:msg;
+                  });});
+                }}/>
+              </div>
+            );}
+            // Normal messages
+            return(
             <div key={i} className="msg" style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
               <div style={{maxWidth:"90%",padding:"10px 14px",fontSize:"13px",lineHeight:1.65,whiteSpace:"pre-wrap",
                 borderRadius:m.role==="user"?"16px 16px 3px 16px":"16px 16px 16px 3px",
@@ -348,7 +419,7 @@ export default function App(){
                 border:m.role==="assistant"?"1px solid rgba(255,255,255,.06)":"none",
                 color:m.role==="user"?"#09182a":"#FAFAF8",fontWeight:m.role==="user"?"600":"400"}}>{m.text}</div>
             </div>
-          );})}
+            );})}
           {busy&&<div style={{display:"flex",gap:"5px",paddingLeft:"4px"}}>{[0,.18,.36].map(function(d,i){return <div key={i} style={{width:"7px",height:"7px",borderRadius:"50%",background:"#C4922A",animation:"dot 1s "+d+"s infinite ease"}}/>;})}</div>}
           <div ref={endRef}/>
         </div>
