@@ -136,16 +136,21 @@ async function buildDoc(quote, co) {
 }
 
 export default async function handler(req, res) {
-  if(req.method!=="POST") return res.status(405).end();
+  res.setHeader("Access-Control-Allow-Origin","*");
+  if(req.method==="OPTIONS") return res.status(200).end();
+  if(req.method!=="POST") return res.status(405).json({error:"Method not allowed"});
   try {
+    if(!req.body) return res.status(400).json({error:"Missing body"});
     const {quote,co} = req.body;
+    if(!quote) return res.status(400).json({error:"Missing quote data"});
     const doc = await buildDoc(quote, co);
     const buffer = await Packer.toBuffer(doc);
-    const filename = (quote.quoteNumber||"BaoGia").replace(/\//g,"-")+".docx";
+    const filename = (quote.quoteNumber||"BaoGia").replace(/[/\\:*?"<>|]/g,"-")+".docx";
     res.setHeader("Content-Type","application/vnd.openxmlformats-officedocument.wordprocessingml.document");
     res.setHeader("Content-Disposition","attachment; filename=\""+filename+"\"");
     res.send(buffer);
   } catch(e) {
-    res.status(500).json({error:e.message});
+    console.error("generate-docx error:", e);
+    res.status(500).json({error: String(e.message||e)});
   }
 }
