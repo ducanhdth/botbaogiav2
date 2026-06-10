@@ -37,7 +37,7 @@ function buildPrompt(co,qid){
     "CATALOG:"+cat+"\n"+
     "CÁCH TÍNH: amount=qty×price; vat=sub×vatRate/100; total=sub+vat\n"+
     "CHỌN BẬC GIÁ: 75 cái→50-100; 200→200-300; 600→501-1000\n"+
-    "VAT: ✓=đã gộp ✗=chưa gộp\n\n"+
+    "VAT: ✓=đã gộp ✗=chưa gộp\n"+     "GIÁ (QUAN TRỌNG): compact 300k=300000₫; 1.265M=1265000₫; 55k=55000₫\n"+     "Trong JSON PHẢI dùng số nguyên đầy đủ: unitPrice:300000 KHÔNG PHẢI 300 hay 300k\n\n"+
     "FORMAT BẮT BUỘC:\nQUOTE_JSON_START\n"+tmpl+"\nQUOTE_JSON_END";
 }
 
@@ -264,7 +264,12 @@ export default function App(){
     setDocxLoading(true);
     try{
       const res=await fetch("/api/generate-docx",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({quote,co})});
-      if(!res.ok){const e=await res.json();throw new Error(e.error||"HTTP "+res.status);}
+      if(!res.ok){
+        const txt=await res.text();
+        let msg="HTTP "+res.status;
+        try{msg=JSON.parse(txt).error||msg;}catch(_){msg=txt.substring(0,120)||msg;}
+        throw new Error(msg);
+      }
       const blob=await res.blob();
       const url=URL.createObjectURL(blob);
       const a=document.createElement("a");
