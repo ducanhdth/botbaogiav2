@@ -284,7 +284,7 @@ export default function App(){
       const qid=newQID();
       const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:2000,system:buildPrompt(co,qid),
-          messages:nm.slice(-6).map(function(m){return{role:m.role==="assistant"?"assistant":"user",content:m.text};})})
+          messages:nm.slice(-6).filter(function(m){return(m.role==="user"||m.role==="assistant")&&m.text&&m.text.trim();}).map(function(m){return{role:m.role==="assistant"?"assistant":"user",content:m.text};})})
       });
       const data=await res.json();
       // Hiện lỗi rõ ràng nếu có
