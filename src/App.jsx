@@ -216,6 +216,111 @@ function QuoteDoc({quote,co}){
 }
 
 
+
+function generateQuoteHTML(quote, co) {
+  const DOT="............";
+  const gf=(v,ph)=>(v&&String(v).trim())?String(v).trim():(ph||DOT);
+  const fmtN=n=>new Intl.NumberFormat("vi-VN").format(Math.round(n||0));
+  const sub=(quote.items||[]).reduce((s,i)=>s+(i.amount||(i.quantity*i.unitPrice)||0),0)||quote.subtotal||0;
+  const vr=quote.vatRate??8, vi=quote.vatIncluded??false;
+  const va=vi?0:Math.round(sub*vr/100);
+  const tot=quote.total||sub+va;
+  const coN=co&&co.name?co.name:"CÔNG TY CỔ PHẦN QUÀ TẶNG VIVA";
+  const coE=co&&co.email?co.email:"lienhe@quatangviva.com";
+  const esc=s=>String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  const rows=(quote.items||[]).map((it,idx)=>`
+    <tr>
+      <td align="center">${it.stt||idx+1}</td>
+      <td><b>${esc(it.name)}</b>${it.code?`<br/><small style="color:#666">Mã: ${esc(it.code)}</small>`:""}</td>
+      <td align="center" style="color:#bbb;font-size:9pt;">[ảnh SP]</td>
+      <td align="center">${esc(it.unit||"Cái")}</td>
+      <td align="center"><b>${fmtN(it.quantity)}</b></td>
+      <td align="right">${fmtN(it.unitPrice)}</td>
+      <td align="right"><b>${fmtN(it.amount!=null?it.amount:it.quantity*it.unitPrice)}</b></td>
+    </tr>`).join("");
+  return `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"/><title>${esc(quote.quoteNumber||"BaoGia")}</title>
+<style>
+@page Section1{size:595.3pt 841.9pt;margin:56.7pt 56.7pt 56.7pt 56.7pt;}
+div.Section1{page:Section1;}
+body{font-family:"Times New Roman",serif;font-size:11pt;margin:0;padding:0;}
+table{border-collapse:collapse;width:100%;}
+.nb td,.nb th{border:none;padding:3pt 4pt;}
+.bd td,.bd th{border:1px solid #000;padding:5pt 6pt;font-size:10.5pt;}
+</style></head>
+<body><div class="Section1">
+<table class="nb" style="margin-bottom:0"><tr>
+  <td style="width:72%;vertical-align:top">
+    <div style="font-weight:bold;font-size:13pt">${esc(coN)}</div>
+    <div style="font-size:9.5pt;line-height:1.8">
+      <div>68 Nguyễn Huệ, Phường Sài Gòn, TP Hồ Chí Minh</div>
+      <div>VP HCM: 189 Tây Thạnh, Tây Thạnh HCM | VP HN: 149 Trần Hòa, Định Công Hoàng Mai HN</div>
+      <div>Hotline: 1900 8159 | Email: lienhe@quatangviva.com | Website: quatangviva.com</div>
+    </div>
+  </td>
+  <td style="width:28%;text-align:center;vertical-align:middle;border:2px solid #2e7d32;padding:6pt">
+    <div style="font-size:16pt;font-weight:bold;color:#2e7d32">viva<span style="color:#66bb6a">gift</span></div>
+    <div style="font-size:8.5pt;color:#555">quatangviva.com</div>
+  </td>
+</tr></table>
+<hr style="border:2px solid #000;margin:8pt 0"/>
+<div style="text-align:center;font-size:17pt;font-weight:bold;margin:10pt 0 14pt">BẢNG BÁO GIÁ SẢN PHẨM &amp; DỊCH VỤ</div>
+<table class="nb" style="margin-bottom:10pt"><tr>
+  <td style="width:55%;vertical-align:top;line-height:1.9">
+    <div><b>Kính gửi (Quotation for):</b> <b>${esc(gf(quote.customer&&quote.customer.name))}</b></div>
+    <div><b>Người liên hệ (Attn):</b> ${esc(gf(quote.customer&&(quote.customer.contact||quote.customer.phone)))}</div>
+    <div><b>Địa chỉ (Address):</b> ${esc(gf(quote.customer&&quote.customer.address))}</div>
+    <div><b>Email:</b> ${esc(gf(quote.customer&&quote.customer.email))}</div>
+  </td>
+  <td style="width:45%;text-align:right;vertical-align:top;line-height:1.9">
+    <div><b>Ngày (Date):</b> ${esc(gf(quote.date))}</div>
+    <div><b>Số BG (Ref No):</b> ${esc(gf(quote.quoteNumber))}</div>
+    <div><b>Nhân viên phụ trách:</b> ${esc(coE)}</div>
+  </td>
+</tr></table>
+<table class="bd">
+<thead><tr style="background:#D9D9D9">
+  <th align="center" style="width:4%">STT</th>
+  <th style="width:31%">Tên SP &amp; Quy cách kỹ thuật</th>
+  <th align="center" style="width:14%">Hình ảnh (Mockup)</th>
+  <th align="center" style="width:6%">ĐVT</th>
+  <th align="center" style="width:8%">Số Lượng</th>
+  <th align="center" style="width:16%">Đơn giá (VNĐ)</th>
+  <th align="center" style="width:21%">Thành tiền (VNĐ)</th>
+</tr></thead>
+<tbody>
+${rows}
+<tr><td colspan="6" align="right"><b>Cộng tiền hàng (Subtotal):</b></td><td align="right"><b>${fmtN(sub)}</b></td></tr>
+<tr><td colspan="6" align="right">Thuế GTGT / VAT (${vr}%):</td><td align="right">${fmtN(va)}</td></tr>
+<tr><td colspan="6" align="right"><b style="font-size:12pt">TỔNG CỘNG TIỀN THANH TOÁN (GRAND TOTAL):</b></td><td align="right"><b style="font-size:12pt">${fmtN(tot)}</b></td></tr>
+<tr><td colspan="7" align="center">(Bằng chữ: <b>${esc(numToWords(tot))}</b>)</td></tr>
+</tbody></table>
+<div style="margin-top:14pt;font-size:11pt;line-height:1.85">
+  <div><b style="font-size:12pt">ĐIỀU KHOẢN &amp; ĐIỀU KIỆN (TERMS &amp; CONDITIONS)</b></div>
+  <div><b>Thanh toán (Payment):</b></div>
+  <div>&bull; Đợt 1: Thanh toán 50% tổng giá trị báo giá trong vòng 7 ngày khi lên đơn đặt hàng / hai bên ký kết hợp đồng.</div>
+  <div>&bull; Đợt cuối: Thanh toán phần còn lại trong vòng 5 ngày kể từ khi nhận đầy đủ hàng và hóa đơn tài chính hợp lệ.</div>
+  <div><b>Thời hạn báo giá (Quotation Valid):</b> Báo giá có giá trị trong vòng 15 ngày kể từ ngày báo giá.</div>
+  <div><b>Giá trên đã bao gồm:</b> Phí in ấn / khắc laze theo yêu cầu, Miễn phí giao hàng đến 1 địa chỉ của Khách hàng.</div>
+  <div><b>Yêu cầu file thiết kế:</b> Khách hàng cung cấp logo định dạng vector (.AI, .EPS) để đảm bảo chất lượng in ấn / khắc laser sắc nét nhất.</div>
+  <div><b>Giao hàng (Delivery):</b> Hàng hóa sẽ được giao trong vòng 10-12 ngày làm việc kể từ ngày nhận được tiền thanh toán đợt 1.</div>
+  ${quote.notes?`<div style="font-style:italic">&#128204; ${esc(quote.notes)}</div>`:""}
+</div>
+<table class="nb" style="margin-top:16pt"><tr>
+  <td style="width:55%">&nbsp;</td>
+  <td style="width:45%;text-align:center">
+    <div style="font-weight:bold;font-size:12pt">BÊN BÁO GIÁ</div>
+    <div style="font-weight:bold">${esc(coE)}</div>
+    <div>Nhân viên kinh doanh</div>
+    <br/><br/><br/><br/>
+    <div style="border-top:1px solid #000;padding-top:4pt;font-style:italic">(Ký, ghi rõ họ tên)</div>
+  </td>
+</tr></table>
+</div></body></html>`;
+}
+
+
 // ── Customer Form (inline in chat) ──
 function CustomerFormMessage({quote, onDone}){
   const[form,setForm]=useState({name:"",contact:"",phone:"",address:"",email:""});
@@ -259,25 +364,19 @@ export default function App(){
   useEffect(()=>{endRef.current&&endRef.current.scrollIntoView({behavior:"smooth"});},[msgs,busy]);
 
   const[docxLoading,setDocxLoading]=useState(false);
-  const downloadWord=async function(){
+  const downloadWord=function(){
     if(!quote)return;
     setDocxLoading(true);
     try{
-      const res=await fetch("/api/generate-docx",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({quote,co})});
-      if(!res.ok){
-        const txt=await res.text();
-        let msg="HTTP "+res.status;
-        try{msg=JSON.parse(txt).error||msg;}catch(_){msg=txt.substring(0,120)||msg;}
-        throw new Error(msg);
-      }
-      const blob=await res.blob();
+      const html=generateQuoteHTML(quote,co);
+      const blob=new Blob(["﻿"+html],{type:"application/msword;charset=utf-8"});
       const url=URL.createObjectURL(blob);
       const a=document.createElement("a");
       a.href=url;
-      a.download=(quote.quoteNumber||"BaoGia").replace(/\//g,"-")+".docx";
+      a.download=(quote.quoteNumber||"BaoGia").replace(/[/\\:*?"<>|]/g,"-")+".doc";
       document.body.appendChild(a);a.click();
       document.body.removeChild(a);URL.revokeObjectURL(url);
-    }catch(e){alert("Lỗi xuất Word: "+e.message);}
+    }catch(e){alert("Lỗi xuất file: "+e.message);}
     setDocxLoading(false);
   };
   const send=async function(){
